@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+publish/
+self-test/
+artifacts/
+*.user
+.vs/
+TestResults/
