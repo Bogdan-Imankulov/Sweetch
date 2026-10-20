@@ -51,6 +51,11 @@ public static class ProcessRunner
         {
             if (e.Data is null)
                 return;
+            // GHC-based tools (pandoc 3.x) append a "HasCallStack backtrace" that would
+            // push the real error message out of the tail; skip those lines.
+            if (e.Data.StartsWith("HasCallStack backtrace", StringComparison.Ordinal)
+                || e.Data.Contains(", called at libraries", StringComparison.Ordinal))
+                return;
             lock (stderrTail)
             {
                 stderrTail.Enqueue(e.Data);
