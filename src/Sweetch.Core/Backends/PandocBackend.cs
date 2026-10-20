@@ -31,6 +31,10 @@ public static class PandocBackend
     public static async Task ConvertAsync(OperationContext ctx, string input, string inputFormat, string output, string format)
     {
         var pandoc = ctx.Tools.Require(ExternalTool.Pandoc);
+        // Pandoc runs with the input's folder as working directory (for relative
+        // images), so relative paths would resolve twice.
+        input = Path.GetFullPath(input);
+        output = Path.GetFullPath(output);
         var args = new List<string>
         {
             input,
