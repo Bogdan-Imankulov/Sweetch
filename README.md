@@ -2,6 +2,15 @@
 
 Файловый конвертер для Windows с круговым меню. Автор проекта Sweetch: [@mmmorozov](https://t.me/mmmorozov).
 
+## Скачать программу для Windows
+
+| Вариант | Скачать | Как запустить |
+| --- | --- | --- |
+| **Установщик EXE** | [Sweetch 1.0 — установить](https://github.com/krllmrzv/Sweetch/releases/download/v1.0/Sweetch-1.0-Setup-win-x64.exe) | Запустите установщик. Он добавит программу в меню «Пуск» и позволит удалить её через настройки Windows. |
+| **Архив ZIP без установки** | [Sweetch 1.0 — скачать архив](https://github.com/krllmrzv/Sweetch/releases/download/v1.0/Sweetch-1.0-win-x64.zip) | Распакуйте всю папку и запустите `Sweetch.exe`. |
+
+Оба варианта содержат готовую программу, .NET и Pandoc. Нужна Windows 10 (1809+) или Windows 11, x64. [Все файлы релиза и контрольные суммы SHA-256](https://github.com/krllmrzv/Sweetch/releases/tag/v1.0). Пункты **Source code** и кнопка **Code → Download ZIP** предназначены для разработчиков и содержат исходники.
+
 <p align="center">
   <img src="docs/dark.png" width="48%" alt="Sweetch: красно-чёрная тема" />
   <img src="docs/light.png" width="48%" alt="Sweetch: бело-голубая тема" />
@@ -11,7 +20,7 @@
 
 ## Запуск
 
-Распакуйте весь архив и запустите `Sweetch.exe`. Программа находится в области уведомлений рядом с часами; двойной щелчок открывает настройки. Требуется Windows 10 (1809+) или Windows 11, x64. .NET включён в переносную сборку.
+Установите программу через EXE или распакуйте весь архив ZIP и запустите `Sweetch.exe`. Программа находится в области уведомлений рядом с часами; двойной щелчок открывает настройки.
 
 Язык: **Как в системе / Русский / English**. Для остальных языков системы используется английский. Оформление: **Как в системе / Тёмная / Светлая**. Тёмная тема — красно-чёрная, светлая — бело-голубая.
 
@@ -39,7 +48,9 @@ dotnet test tests/Sweetch.Tests -c Release
 ./publish/Sweetch.exe --self-test ./self-test
 ```
 
-В `.github/workflows/build.yml` подготовлена сборка Windows и переносного ZIP для будущего репозитория. Репозиторий проекта: [krllmrzv/Sweetch](https://github.com/krllmrzv/Sweetch).
+Для установщика нужен [Inno Setup 6 или 7](https://jrsoftware.org/isdl.php): после `build.ps1` выполните `./scripts/build-installer.ps1`. Результат появится в `artifacts/`.
+
+GitHub Actions проверяет программу и установку, создаёт ZIP и установщик EXE с контрольными суммами и публикует их в релизе по тегу `v*`. Отдельный workflow **Publish installer for existing release** добавляет установщик к уже выпущенному ZIP, проверяя его SHA-256 и сохраняя файлы программы без изменений. Репозиторий проекта: [krllmrzv/Sweetch](https://github.com/krllmrzv/Sweetch).
 
 ## Лицензия
 

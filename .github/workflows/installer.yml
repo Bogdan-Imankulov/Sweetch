@@ -1,0 +1,49 @@
+name: Publish installer for existing release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag
+        required: true
+        default: v1.0
+permissions:
+  contents: read
+jobs:
+  installer:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download and verify released portable app
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+(\.\d+){0,2}$') { throw 'Invalid release tag' }
+          $version = $env:RELEASE_TAG.Substring(1)
+          "APP_VERSION=$version" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          $archive = "Sweetch-$version-win-x64.zip"
+          gh release download $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --pattern $archive --pattern "$archive.sha256" --dir released
+          if ($LASTEXITCODE -ne 0) { throw 'Release download failed' }
+          $expected = ((Get-Content "released/$archive.sha256" -Raw).Trim() -split '\s+')[0]
+          $actual = (Get-FileHash "released/$archive" -Algorithm SHA256).Hash
+          if ($expected -notmatch '^[a-fA-F0-9]{64}$' -or $actual -ne $expected) { throw 'Release checksum mismatch' }
+          Expand-Archive "released/$archive" -DestinationPath publish
+      - name: Build installer
+        shell: pwsh
+        run: ./scripts/build-installer.ps1 -Version $env:APP_VERSION
+      - name: Verify install, payload, app and uninstall
+        shell: pwsh
+        run: ./scripts/verify-installer.ps1 -Installer "./artifacts/Sweetch-$env:APP_VERSION-Setup-win-x64.exe"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Sweetch-Installer
+          path: artifacts/*
+      - name: Add installer to existing release
+        shell: pwsh
+        run: |
+          $files = (Get-ChildItem artifacts -File).FullName
+          gh release upload $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY @files --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
