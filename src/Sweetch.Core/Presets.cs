@@ -116,7 +116,7 @@ public static class PresetOperations
         var suffix = SafeSuffix(name);
         return p.Kind switch
         {
-            PresetKind.Image => new PerFileOperation("preset." + p.Id, wheel, name, Glyphs.Photo, Formats.Images,
+            PresetKind.Image => new PerFileOperation("preset." + p.Id, wheel, name, Glyphs.Photo, Formats.ImageInputs,
                 async (item, ctx, _) =>
                 {
                     var format = p.Format == Preset.SameFormat ? ImageBackend.OutputFormatFor(item.Format) : p.Format;

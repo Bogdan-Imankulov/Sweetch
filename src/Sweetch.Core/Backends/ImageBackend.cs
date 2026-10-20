@@ -9,10 +9,17 @@ public static class ImageBackend
     private static MagickImage Load(string path)
     {
         var settings = new MagickReadSettings();
-        if (Formats.KeyOf(path) == "svg")
+        var key = Formats.KeyOf(path);
+        if (key == "svg")
         {
             settings.Density = new Density(192);
             settings.BackgroundColor = MagickColors.Transparent;
+        }
+        if (Formats.Raw.Contains(key))
+        {
+            // Develop like the camera would: its white balance, sRGB output.
+            settings.SetDefine("dng:use-camera-wb", "true");
+            settings.SetDefine("dng:output-color", "1");
         }
         // Only the first frame for animated GIF/WebP/multi-page TIFF.
         settings.FrameIndex = 0;
@@ -76,6 +83,7 @@ public static class ImageBackend
     public static string OutputFormatFor(string inputFormat) => inputFormat switch
     {
         "svg" => "png",
+        _ when Formats.Raw.Contains(inputFormat) => "jpg",
         _ => inputFormat,
     };
 
