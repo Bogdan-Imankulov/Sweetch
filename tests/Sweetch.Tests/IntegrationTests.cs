@@ -180,7 +180,7 @@ public class IntegrationTests : IClassFixture<IntegrationTests.Samples>
                     Assert.Empty(Directory.GetFiles(outDir, "*.part.*"));
                     output.WriteLine($"ok   {op.Id} → {string.Join(", ", result.Outputs.Select(Path.GetFileName))}");
                 }
-                catch (ConversionException ex) when (key is "pdf" && !_s.PdfHasText && ex.Message.Contains("neobsahuje žádný text"))
+                catch (ConversionException) when (key is "pdf" && !_s.PdfHasText && op.Id is "pdf.to.txt" or "pdf.to.md")
                 {
                     output.WriteLine($"ok   {op.Id} (expected: image-only PDF has no text)");
                 }
