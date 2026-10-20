@@ -1,13 +1,18 @@
 name: Sweetch Windows
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
       - name: Test
@@ -25,13 +30,36 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force artifacts | Out-Null
-          Compress-Archive -Path ./publish/* -DestinationPath ./artifacts/Sweetch-1.0-win-x64.zip
-      - uses: actions/upload-artifact@v4
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '1.0' }
+          Compress-Archive -Path ./publish/* -DestinationPath "./artifacts/Sweetch-$version-win-x64.zip"
+          Get-FileHash ./artifacts/*.zip -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" | Out-File -Encoding ascii "$($_.Path).sha256"
+          }
+      - uses: actions/upload-artifact@v7
         with:
-          name: Sweetch-1.0-Windows
+          name: Sweetch-Windows
           path: artifacts/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: Sweetch-previews
           path: self-test
+
+  # Pushing a tag like v1.0.1 publishes the tested ZIP as a GitHub Release.
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: Sweetch-Windows
+          path: artifacts
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --title "Sweetch ${GITHUB_REF_NAME#v}" --generate-notes artifacts/*

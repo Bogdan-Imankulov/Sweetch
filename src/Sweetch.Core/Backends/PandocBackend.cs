@@ -31,12 +31,20 @@ public static class PandocBackend
     public static async Task ConvertAsync(OperationContext ctx, string input, string inputFormat, string output, string format)
     {
         var pandoc = ctx.Tools.Require(ExternalTool.Pandoc);
+        // Pandoc runs with the input's folder as working directory (for relative
+        // images), so relative paths would resolve twice.
+        input = Path.GetFullPath(input);
+        output = Path.GetFullPath(output);
         var args = new List<string>
         {
             input,
             "-f", ReaderFor(inputFormat),
             "-t", WriterFor(format),
             "-o", output,
+            // Pandoc encodes stderr with the ANSI code page on Windows; a warning that
+            // mentions a Cyrillic file name crashes it on non-Cyrillic systems
+            // ("hPutChar: invalid argument"). Warnings are not shown to users anyway.
+            "--quiet",
         };
         if (format is "html" or "rtf" or "epub" || inputFormat == "html")
             args.Add("--standalone");
