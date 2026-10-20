@@ -37,6 +37,10 @@ public static class PandocBackend
             "-f", ReaderFor(inputFormat),
             "-t", WriterFor(format),
             "-o", output,
+            // Pandoc encodes stderr with the ANSI code page on Windows; a warning that
+            // mentions a Cyrillic file name crashes it on non-Cyrillic systems
+            // ("hPutChar: invalid argument"). Warnings are not shown to users anyway.
+            "--quiet",
         };
         if (format is "html" or "rtf" or "epub" || inputFormat == "html")
             args.Add("--standalone");
