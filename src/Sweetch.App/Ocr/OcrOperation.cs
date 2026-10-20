@@ -26,7 +26,7 @@ internal sealed class OcrOperation : Operation
     public static Action<string>? CopyToClipboard { get; set; }
 
     public override bool AppliesTo(IReadOnlyList<FileItem> items) =>
-        items.Count > 0 && items.All(i => !i.IsDirectory && (Formats.Images.Contains(i.Format) || i.Format == "pdf"));
+        items.Count > 0 && items.All(i => !i.IsDirectory && (Formats.ImageInputs.Contains(i.Format) || i.Format == "pdf"));
 
     public override bool IsAvailable(ToolLocator tools, IReadOnlyList<FileItem> items) => Available;
 

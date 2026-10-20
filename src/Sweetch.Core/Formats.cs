@@ -23,6 +23,14 @@ public static class Formats
     public static readonly HashSet<string> Images = Set("jpg", "png", "webp", "heic", "tiff", "avif", "bmp", "gif", "svg", "ico");
     public static readonly string[] ImageOutputs = ["jpg", "png", "webp", "avif", "tiff", "ico", "pdf"];
 
+    /// <summary>Camera RAW, decoded by LibRaw inside Magick.NET. Read-only: edits are saved as JPG.</summary>
+    public static readonly HashSet<string> Raw = Set(
+        "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "raf", "orf", "rw2", "rwl",
+        "pef", "srw", "3fr", "fff", "iiq", "erf", "kdc", "dcr", "mrw", "mos", "x3f", "gpr");
+
+    /// <summary>Everything the image operations accept: regular images plus camera RAW.</summary>
+    public static readonly HashSet<string> ImageInputs = new(Images.Concat(Raw), StringComparer.OrdinalIgnoreCase);
+
     public static readonly HashSet<string> Audio = Set("mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "aiff", "wma");
     public static readonly string[] AudioOutputs = ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aiff"];
 

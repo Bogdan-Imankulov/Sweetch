@@ -33,7 +33,7 @@ public static class Catalog
     {
         foreach (var target in Formats.ImageOutputs)
         {
-            ops.Add(new PerFileOperation($"image.to.{target}", WheelKind.Convert, Formats.Display(target), Glyphs.Photo, Formats.Images,
+            ops.Add(new PerFileOperation($"image.to.{target}", WheelKind.Convert, Formats.Display(target), Glyphs.Photo, Formats.ImageInputs,
                 async (item, ctx, _) => [await Produce(item, ctx, target, tmp => ImageBackend.ConvertAsync(item.Path, tmp, target, ctx.Settings, ctx.CancellationToken))],
                 targetFormat: target, subtitle: target == "pdf" ? T("document", "документ") : null));
         }
@@ -55,13 +55,13 @@ public static class Catalog
         ImageEdit(ops, "image.grayscale", T("Grayscale", "Оттенки серого"), Glyphs.Color, null, T("grayscale", "оттенки серого"), ImageBackend.Grayscale);
         ImageEdit(ops, "image.strip", T("No metadata", "Без метаданных"), Glyphs.Clear, "GPS, EXIF", T("no metadata", "без метаданных"), img => img.Strip());
         ops.Add(new BatchOperation("image.merge.pdf", WheelKind.Tools, T("Merge to PDF", "Объединить в PDF"), Glyphs.Merge,
-            BatchOperation.AllOf(Formats.Images, min: 2),
+            BatchOperation.AllOf(Formats.ImageInputs, min: 2),
             async (items, ctx) => [await OutputPaths.ProduceAsync(ctx.OutputDirFor(items[0].Path), items[0].BaseName, "pdf",
                 tmp => ImageBackend.ImagesToPdfAsync(items.Select(i => i.Path).OrderBy(p => p, NaturalComparer.Instance).ToList(), tmp, ctx.Settings.JpegQuality, ctx.CancellationToken))]));
     }
 
     private static void ImageTool(List<Operation> ops, string id, string label, string glyph, string suffix, Func<FileItem, OperationContext, string, Task> run, string? subtitle = null) =>
-        ops.Add(new PerFileOperation(id, WheelKind.Tools, label, glyph, Formats.Images,
+        ops.Add(new PerFileOperation(id, WheelKind.Tools, label, glyph, Formats.ImageInputs,
             async (item, ctx, _) => [await OutputPaths.ProduceAsync(ctx.OutputDirFor(item.Path), $"{item.BaseName} ({suffix})",
                 ImageBackend.OutputFormatFor(item.Format), tmp => run(item, ctx, tmp))], subtitle: subtitle));
 
