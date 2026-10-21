@@ -126,6 +126,25 @@ public static class Catalog
                 : [.. H264(ctx.Settings.VideoCrf, "medium", null, null), "-an"],
             subtitle: T("muted", "без звука"));
         ops.Add(Trim("video.trim", Formats.Video));
+        string[] codecs = ["H.264", "H.265", "AV1", "VP9", "ProRes"];
+        ops.Add(new PerFileOperation("video.encode", WheelKind.Tools, T("Codec & FPS", "Кодек и FPS"), Glyphs.Video, Formats.Video, async (item, ctx, p) =>
+        {
+            var codec = ctx.Param("codec", "H.264");
+            var fps = double.TryParse(ctx.Param("fps"), NumberStyles.Float, CultureInfo.InvariantCulture, out var f) && f > 0 ? f : (double?)null;
+            var (args, container) = EncodeArgs(codec, fps, ctx.Settings.VideoCrf);
+            var suffix = fps is null ? codec : $"{codec} {fps.Value.ToString(CultureInfo.InvariantCulture)} fps";
+            return [await FfmpegBackend.TransformAsync(item, suffix, ctx, p, args, container)];
+        }, subtitle: "H.265, AV1, 60 fps…")
+        {
+            Requires = [ExternalTool.Ffmpeg],
+            Parameters =
+            [
+                new ParameterSpec("codec", T("Codec", "Кодек"), "H.264", T("H.264 plays everywhere; H.265 and AV1 are smaller but slower to encode; ProRes is for editing (large files)",
+                    "H.264 открывается везде; H.265 и AV1 меньше, но кодируются дольше; ProRes — для монтажа (большие файлы)"), codecs),
+                new ParameterSpec("fps", T("Frame rate", "Частота кадров"), T("Same", "Как есть"), T("Lowering drops frames, raising repeats them", "Понижение выкидывает кадры, повышение повторяет их"),
+                    [T("Same", "Как есть"), "24", "25", "30", "50", "60"]),
+            ],
+        });
         ops.Add(new PerFileOperation("video.relight", WheelKind.Tools, T("Light & color", "Свет и цвет"), Glyphs.Brightness, Formats.Video,
             async (item, ctx, p) => [await FfmpegBackend.TransformAsync(item, T("edited", "обработано"), ctx, p,
                 H264(ctx.Settings.VideoCrf, "medium", Relight.Filter(ctx.Parameters), "160k"), "mp4")],
@@ -156,6 +175,23 @@ public static class Catalog
             Requires = [ExternalTool.Ffmpeg],
             Parameters = [new ParameterSpec("times", T("Frames", "Кадры"), "", T("times separated by “;”, e.g. 0:05; 1:30.5 — empty = pick one automatically", "время через «;», например 0:05; 1:30.5 — пусто = выбрать автоматически"))],
         });
+    }
+
+    /// <summary>Encoder arguments and container for a codec; <paramref name="crf"/> is the H.264 quality, the others are matched to it.</summary>
+    internal static (string[] Args, string Container) EncodeArgs(string codec, double? fps, int crf)
+    {
+        var vf = (fps is { } f ? $"fps={f.ToString(CultureInfo.InvariantCulture)}," : "") + "scale=trunc(iw/2)*2:trunc(ih/2)*2";
+        string Crf(int offset) => (crf + offset).ToString(CultureInfo.InvariantCulture);
+        return codec switch
+        {
+            // hvc1 tag: otherwise Apple players refuse H.265 in MP4.
+            "H.265" => (["-c:v", "libx265", "-preset", "medium", "-crf", Crf(5), "-tag:v", "hvc1", "-pix_fmt", "yuv420p", "-vf", vf, "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"], "mp4"),
+            // The FFmpeg build Sweetch downloads has libaom, not SVT-AV1; cpu-used 6 keeps it bearable.
+            "AV1" => (["-c:v", "libaom-av1", "-crf", Crf(9), "-b:v", "0", "-cpu-used", "6", "-row-mt", "1", "-pix_fmt", "yuv420p", "-vf", vf, "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"], "mp4"),
+            "VP9" => (["-c:v", "libvpx-vp9", "-crf", Crf(9), "-b:v", "0", "-row-mt", "1", "-deadline", "good", "-cpu-used", "4", "-pix_fmt", "yuv420p", "-vf", vf, "-c:a", "libopus", "-b:a", "128k"], "webm"),
+            "ProRes" => (["-c:v", "prores_ks", "-profile:v", "3", "-pix_fmt", "yuv422p10le", "-vf", vf, "-c:a", "pcm_s16le"], "mov"),
+            _ => ([.. H264(crf, "medium", fps is { } r ? $"fps={r.ToString(CultureInfo.InvariantCulture)}" : null, "160k")], "mp4"),
+        };
     }
 
     private static string[] H264(int crf, string preset, string? filter, string? audioBitrate)

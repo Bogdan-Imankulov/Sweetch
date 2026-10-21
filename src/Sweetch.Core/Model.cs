@@ -31,7 +31,8 @@ public sealed record FileItem(string Path)
 }
 
 /// <summary>A value the user is asked for before an operation runs (e.g. trim start/end).</summary>
-public sealed record ParameterSpec(string Key, string Label, string DefaultValue, string? Hint = null);
+/// <param name="Choices">When set, the value is picked from these instead of typed.</param>
+public sealed record ParameterSpec(string Key, string Label, string DefaultValue, string? Hint = null, IReadOnlyList<string>? Choices = null);
 
 /// <param name="Message">A warning (e.g. some files of a batch failed).</param>
 /// <param name="Note">Extra information for the user, e.g. "text copied to the clipboard".</param>

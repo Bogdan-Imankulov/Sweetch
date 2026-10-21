@@ -24,6 +24,7 @@ internal sealed class ParameterDialog : Window, IParameterWindow
     };
 
     private readonly Dictionary<string, TextBox> _boxes = new();
+    private readonly Dictionary<string, string> _picked = new();
 
     public ParameterDialog(Operation op, IReadOnlyList<FileItem> items)
     {
@@ -51,6 +52,13 @@ internal sealed class ParameterDialog : Window, IParameterWindow
         foreach (var p in op.Parameters)
         {
             stack.Children.Add(new TextBlock { Text = p.Label, Margin = new Thickness(0, 6, 0, 4) });
+            if (p.Choices is { } choices)
+            {
+                var key = p.Key;
+                _picked[key] = p.DefaultValue;
+                stack.Children.Add(Controls.Segmented(choices.Select(c => (c, c)).ToList(), p.DefaultValue, v => _picked[key] = v));
+                continue;
+            }
             var box = new TextBox
             {
                 Text = p.DefaultValue,
@@ -96,5 +104,6 @@ internal sealed class ParameterDialog : Window, IParameterWindow
         };
     }
 
-    public IReadOnlyDictionary<string, string> Values => _boxes.ToDictionary(kv => kv.Key, kv => kv.Value.Text);
+    public IReadOnlyDictionary<string, string> Values =>
+        _boxes.Select(kv => (kv.Key, kv.Value.Text)).Concat(_picked.Select(kv => (kv.Key, kv.Value))).ToDictionary(kv => kv.Key, kv => kv.Item2);
 }

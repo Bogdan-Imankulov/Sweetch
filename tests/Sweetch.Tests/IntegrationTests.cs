@@ -261,6 +261,32 @@ public class IntegrationTests : IClassFixture<IntegrationTests.Samples>
         Assert.Equal(5, frames);
     }
 
+    [Theory]
+    [InlineData("H.264", "60", "h264", 60)]
+    [InlineData("H.265", "", "hevc", 25)]
+    [InlineData("AV1", "24", "av1", 24)]
+    [InlineData("VP9", "", "vp9", 25)]
+    [InlineData("ProRes", "30", "prores", 30)]
+    public async Task Codec_and_fps(string codec, string fps, string expectedCodec, double expectedFps)
+    {
+        if (!_s.Tools.Has(ExternalTool.Ffmpeg))
+            return;
+        var op = Catalog.Build().Single(o => o.Id == "video.encode");
+        var result = await op.ExecuteAsync([new FileItem(_s.Files["mp4"])],
+            _s.Context(Path.Combine(_s.Dir, "out", "encode", codec), new Dictionary<string, string> { ["codec"] = codec, ["fps"] = fps }));
+        var info = "";
+        try
+        {
+            await ProcessRunner.RunAsync(_s.Tools.Ffmpeg!, ["-hide_banner", "-i", result.Outputs[0]], default, line => info += line + Environment.NewLine);
+        }
+        catch (ConversionException)
+        {
+            // No output file: ffmpeg only prints the stream info.
+        }
+        Assert.Contains($"Video: {expectedCodec}", info);
+        Assert.Equal(expectedFps, (await FfmpegBackend.ProbeAsync(_s.Tools.Ffmpeg!, result.Outputs[0])).Fps);
+    }
+
     [Fact]
     public async Task Frames_exports_exactly_the_picked_frames()
     {

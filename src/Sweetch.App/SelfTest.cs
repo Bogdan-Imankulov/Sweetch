@@ -161,6 +161,9 @@ internal static class SelfTest
         var trim = core.Single(o => o.Id == "video.trim");
         var dialog = new ParameterDialog(trim, [new FileItem(N(@"C:\Videa\klip.mov", @"C:\Videos\clip.mov"))]);
         SaveWindow(dialog, Path.Combine(outDir, "trim-dialog.png"), 360);
+        var encode = new ParameterDialog(core.Single(o => o.Id == "video.encode"), [new FileItem(N(@"C:\Videa\klip.mov", @"C:\Videos\clip.mov"))]);
+        Check(encode.Values["codec"] == "H.264", "codec choice default");
+        SaveWindow(encode, Path.Combine(outDir, "encode-dialog.png"), 520);
         log.Add($"ok {Path.GetFileName(outDir)}/parameter dialog");
     }
 
