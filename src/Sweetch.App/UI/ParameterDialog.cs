@@ -18,7 +18,7 @@ internal sealed class ParameterDialog : Window, IParameterWindow
     /// <summary>The richer window for operations that have one (player for trim), else this plain form.</summary>
     public static Window For(Operation op, IReadOnlyList<FileItem> items, ToolLocator tools) => op.Id switch
     {
-        "video.trim" or "audio.trim" => new TrimWindow(op, items, tools),
+        "video.trim" or "audio.trim" or "video.thumbnail" => new PlayerWindow(op, items, tools),
         "video.relight" or "image.relight" => new RelightWindow(op, items, tools),
         _ => new ParameterDialog(op, items),
     };

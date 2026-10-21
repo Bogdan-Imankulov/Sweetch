@@ -327,7 +327,7 @@ internal static class SelfTest
 
         var wav = Path.Combine(dir, "тон #1.wav");
         WriteTone(wav, seconds: 2);
-        var audio = new TrimWindow(trim, [new FileItem(wav)], new ToolLocator());
+        var audio = new PlayerWindow(trim, [new FileItem(wav)], new ToolLocator());
         audio.Show();
         Pump(() => audio.Length > 0, TimeSpan.FromSeconds(15));
         Check(audio.Length is > 1900 and < 2100, $"player reads audio length ({audio.Length} ms)");
@@ -342,7 +342,7 @@ internal static class SelfTest
         var mp4 = Path.Combine(dir, "clip.mp4");
         ProcessRunner.RunAsync(tools.Require(ExternalTool.Ffmpeg), ["-hide_banner", "-y", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25:duration=4",
             "-f", "lavfi", "-i", "sine=frequency=440:duration=4", "-shortest", "-pix_fmt", "yuv420p", mp4], default).GetAwaiter().GetResult();
-        var video = new TrimWindow(trim, [new FileItem(mp4)], tools);
+        var video = new PlayerWindow(trim, [new FileItem(mp4)], tools);
         video.Show();
         Pump(() => video.Length > 0, TimeSpan.FromSeconds(15));
         Check(video.Length is > 3900 and < 4100 && Math.Abs(video.FrameMs - 40) < 0.01, $"player reads video length and frame rate ({video.Length} ms, {video.FrameMs} ms/frame)");
@@ -366,6 +366,19 @@ internal static class SelfTest
         Pump(() => false, TimeSpan.FromSeconds(0.5));
         CaptureScreen(video, Path.Combine(dir, "marked.png"));
         video.Close();
+
+        var picker = new PlayerWindow(WheelController.BuildOperations().Single(o => o.Id == "video.thumbnail"), [new FileItem(mp4)], tools);
+        picker.Show();
+        Pump(() => picker.Length > 0, TimeSpan.FromSeconds(15));
+        Pump(() => false, TimeSpan.FromSeconds(1));
+        picker.Step(10);
+        picker.AddFrame();
+        picker.Step(5);
+        picker.AddFrame();
+        Check(picker.Values["times"] == "00:00:00.400; 00:00:00.600", $"picked frames ({picker.Values["times"]})");
+        Pump(() => false, TimeSpan.FromSeconds(1));
+        CaptureScreen(picker, Path.Combine(dir, "frames.png"));
+        picker.Close();
         log.Add("ok player");
     }
 

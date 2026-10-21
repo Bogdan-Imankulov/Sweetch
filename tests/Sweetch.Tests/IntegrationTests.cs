@@ -262,6 +262,32 @@ public class IntegrationTests : IClassFixture<IntegrationTests.Samples>
     }
 
     [Fact]
+    public async Task Frames_exports_exactly_the_picked_frames()
+    {
+        if (!_s.Tools.Has(ExternalTool.Ffmpeg))
+            return;
+        var dir = Path.Combine(_s.Dir, "out", "pick");
+        Directory.CreateDirectory(dir);
+        var source = Path.Combine(dir, "ntsc.mp4");
+        await ProcessRunner.RunAsync(_s.Tools.Ffmpeg!, ["-hide_banner", "-y", "-f", "lavfi", "-i", "testsrc2=size=160x120:rate=24000/1001:duration=3",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", source], default);
+        var frameMs = 1000 / (await FfmpegBackend.ProbeAsync(_s.Tools.Ffmpeg!, source)).Fps!.Value;
+        var times = string.Join("; ", new[] { 12, 37 }.Select(n => FfmpegBackend.FormatTime(FfmpegBackend.FrameStart(n, frameMs))));
+
+        var op = Catalog.Build().Single(o => o.Id == "video.thumbnail");
+        var result = await op.ExecuteAsync([new FileItem(source)], _s.Context(dir, new Dictionary<string, string> { ["times"] = times }));
+        Assert.Equal(2, result.Outputs.Count);
+        foreach (var (output, n) in result.Outputs.Zip([12, 37]))
+        {
+            var expected = Path.Combine(dir, $"expected-{n}.png");
+            await ProcessRunner.RunAsync(_s.Tools.Ffmpeg!, ["-hide_banner", "-y", "-i", source, "-vf", $"select='eq(n,{n})'", "-frames:v", "1", expected], default);
+            using var a = new ImageMagick.MagickImage(output);
+            using var b = new ImageMagick.MagickImage(expected);
+            Assert.True(a.Compare(b, ImageMagick.ErrorMetric.RootMeanSquared) < 0.001, $"{Path.GetFileName(output)} is frame {n}");
+        }
+    }
+
+    [Fact]
     public async Task Relight_runs_every_knob_and_brightens()
     {
         if (!_s.Tools.Has(ExternalTool.Ffmpeg))

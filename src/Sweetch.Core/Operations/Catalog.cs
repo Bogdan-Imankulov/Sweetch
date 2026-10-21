@@ -136,8 +136,26 @@ public static class Catalog
         Ffmpeg(ops, "video.speed2", T("Speed up", "Ускорить"), Glyphs.Play, Formats.Video, "2×",
             (item, ctx) => [.. H264(ctx.Settings.VideoCrf, "medium", "setpts=0.5*PTS", "160k"), "-af", "atempo=2.0"],
             outputFormat: _ => "mp4", subtitle: "2×");
-        Ffmpeg(ops, "video.thumbnail", T("Thumbnail", "Миниатюра"), Glyphs.Camera, Formats.Video, T("thumbnail", "миниатюра"),
-            (item, ctx) => ["-vf", "thumbnail=150", "-frames:v", "1", "-update", "1"], outputFormat: _ => "png", subtitle: T("PNG frame", "кадр PNG"));
+        ops.Add(new PerFileOperation("video.thumbnail", WheelKind.Tools, T("Frames", "Кадры"), Glyphs.Camera, Formats.Video, async (item, ctx, p) =>
+        {
+            var times = ctx.Param("times").Split([';', ' ', '\t', '\n'], StringSplitOptions.RemoveEmptyEntries).Select(FfmpegBackend.ParseTime).ToList();
+            if (times.Count == 0)
+                return [await FfmpegBackend.TransformAsync(item, T("thumbnail", "миниатюра"), ctx, p, ["-vf", "thumbnail=150", "-frames:v", "1", "-update", "1"], "png")];
+            var outputs = new List<string>();
+            for (var i = 0; i < times.Count; i++)
+            {
+                // -ss before -i decodes up to the exact frame (the player marks frame starts).
+                var stamp = FfmpegBackend.FormatTime(times[i]).Replace(':', '-');
+                outputs.Add(await FfmpegBackend.TransformAsync(item, $"{T("frame", "кадр")} {stamp}", ctx, new Progress<double>(),
+                    ["-frames:v", "1", "-update", "1"], "png", inputArgs: ["-ss", times[i].ToString("0.###", CultureInfo.InvariantCulture)], duration: 1));
+                p.Report((i + 1.0) / times.Count);
+            }
+            return outputs;
+        }, subtitle: T("to PNG", "в PNG"))
+        {
+            Requires = [ExternalTool.Ffmpeg],
+            Parameters = [new ParameterSpec("times", T("Frames", "Кадры"), "", T("times separated by “;”, e.g. 0:05; 1:30.5 — empty = pick one automatically", "время через «;», например 0:05; 1:30.5 — пусто = выбрать автоматически"))],
+        });
     }
 
     private static string[] H264(int crf, string preset, string? filter, string? audioBitrate)
