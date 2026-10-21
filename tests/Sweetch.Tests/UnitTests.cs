@@ -27,6 +27,31 @@ public class FormatTests
     }
 }
 
+public class RateTests
+{
+    [Theory]
+    [InlineData("29.97", 29.97)]
+    [InlineData("29,97", 29.97)]
+    [InlineData(" 30000/1001 ", 30000.0 / 1001)]
+    public void ParseRate_reads_numbers_and_fractions(string text, double expected) => Assert.Equal(expected, FfmpegBackend.ParseRate(text)!.Value, 9);
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("abc")]
+    [InlineData("0")]
+    [InlineData("-5")]
+    [InlineData("1/0")]
+    [InlineData("1/2/3")]
+    public void ParseRate_rejects_junk(string text) => Assert.Null(FfmpegBackend.ParseRate(text));
+
+    [Theory]
+    [InlineData(2, "atempo=2")]
+    [InlineData(0.5, "atempo=0.5")]
+    [InlineData(0.25, "atempo=0.5,atempo=0.5")]
+    [InlineData(0.1, "atempo=0.5,atempo=0.5,atempo=0.5,atempo=0.8")]
+    public void Atempo_chains_below_half_speed(double speed, string expected) => Assert.Equal(expected, Catalog.Atempo(speed));
+}
+
 public class RelightTests
 {
     [Fact]

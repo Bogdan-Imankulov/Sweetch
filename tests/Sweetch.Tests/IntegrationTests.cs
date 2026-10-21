@@ -267,6 +267,8 @@ public class IntegrationTests : IClassFixture<IntegrationTests.Samples>
     [InlineData("AV1", "24", "av1", 24)]
     [InlineData("VP9", "", "vp9", 25)]
     [InlineData("ProRes", "30", "prores", 30)]
+    [InlineData("H.264", "12", "h264", 12)]
+    [InlineData("VP9", "30000/1001", "vp9", 30000.0 / 1001)]
     public async Task Codec_and_fps(string codec, string fps, string expectedCodec, double expectedFps)
     {
         if (!_s.Tools.Has(ExternalTool.Ffmpeg))
@@ -284,7 +286,32 @@ public class IntegrationTests : IClassFixture<IntegrationTests.Samples>
             // No output file: ffmpeg only prints the stream info.
         }
         Assert.Contains($"Video: {expectedCodec}", info);
-        Assert.Equal(expectedFps, (await FfmpegBackend.ProbeAsync(_s.Tools.Ffmpeg!, result.Outputs[0])).Fps);
+        Assert.Equal(expectedFps, (await FfmpegBackend.ProbeAsync(_s.Tools.Ffmpeg!, result.Outputs[0])).Fps!.Value, 6);
+    }
+
+    [Fact]
+    public async Task Codec_rejects_a_junk_frame_rate()
+    {
+        if (!_s.Tools.Has(ExternalTool.Ffmpeg))
+            return;
+        var op = Catalog.Build().Single(o => o.Id == "video.encode");
+        await Assert.ThrowsAsync<ConversionException>(() => op.ExecuteAsync([new FileItem(_s.Files["mp4"])],
+            _s.Context(Path.Combine(_s.Dir, "out", "encode-junk"), new Dictionary<string, string> { ["codec"] = "H.264", ["fps"] = "3o fps" })));
+    }
+
+    [Theory]
+    [InlineData("0.25×", 8)]
+    [InlineData("1.5×", 1.333)]
+    [InlineData("1,25", 1.6)]
+    public async Task Speed_changes_duration_and_keeps_sound(string speed, double seconds)
+    {
+        if (!_s.Tools.Has(ExternalTool.Ffmpeg))
+            return;
+        var op = Catalog.Build().Single(o => o.Id == "video.speed2");
+        var result = await op.ExecuteAsync([new FileItem(_s.Files["mp4"])],
+            _s.Context(Path.Combine(_s.Dir, "out", "speed", seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)), new Dictionary<string, string> { ["speed"] = speed }));
+        var (duration, _) = await FfmpegBackend.ProbeAsync(_s.Tools.Ffmpeg!, result.Outputs[0]);
+        Assert.InRange(duration!.Value, seconds - 0.15, seconds + 0.15);
     }
 
     [Fact]

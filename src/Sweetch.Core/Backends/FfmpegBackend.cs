@@ -160,6 +160,17 @@ public static partial class FfmpegBackend
         _ => format,
     };
 
+    /// <summary>"29.97", "29,97" or "30000/1001" → the number; null when it isn't a positive one.</summary>
+    public static double? ParseRate(string text)
+    {
+        var parts = text.Trim().Replace(',', '.').Split('/');
+        var numbers = parts.Select(p => double.TryParse(p, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : double.NaN).ToList();
+        if (numbers.Count > 2 || numbers.Any(double.IsNaN))
+            return null;
+        var value = numbers[0] / (numbers.Count == 2 ? numbers[1] : 1);
+        return value > 0 && double.IsFinite(value) ? value : null;
+    }
+
     /// <summary>Parses "90", "1:30", "01:02:03.5" into seconds.</summary>
     public static double ParseTime(string text)
     {

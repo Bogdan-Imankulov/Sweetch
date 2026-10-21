@@ -56,7 +56,28 @@ internal sealed class ParameterDialog : Window, IParameterWindow
             {
                 var key = p.Key;
                 _picked[key] = p.DefaultValue;
-                stack.Children.Add(Controls.Segmented(choices.Select(c => (c, c)).ToList(), p.DefaultValue, v => _picked[key] = v));
+                var segmented = Controls.Segmented(choices.Select(c => (c, c)).ToList(), p.DefaultValue, v => _picked[key] = v);
+                if (p.OwnValue)
+                {
+                    var own = Controls.TextField("", 20);
+                    own.Width = 90;
+                    own.ToolTip = T("Your own value", "Своё значение");
+                    // A filled box wins; the pills fade to show they no longer apply.
+                    own.TextChanged += (_, _) => segmented.Opacity = string.IsNullOrWhiteSpace(own.Text) ? 1 : 0.4;
+                    _boxes[key] = own;
+                    var or = Controls.Text(T("or", "или"), 13, brush: Theme.Muted, wrap: false);
+                    or.Margin = new Thickness(10, 0, 10, 0);
+                    or.VerticalAlignment = VerticalAlignment.Center;
+                    var row = new StackPanel { Orientation = Orientation.Horizontal };
+                    row.Children.Add(segmented);
+                    row.Children.Add(or);
+                    row.Children.Add(own);
+                    stack.Children.Add(row);
+                }
+                else
+                {
+                    stack.Children.Add(segmented);
+                }
             }
             else
             {
@@ -106,6 +127,18 @@ internal sealed class ParameterDialog : Window, IParameterWindow
         };
     }
 
-    public IReadOnlyDictionary<string, string> Values =>
-        _boxes.Select(kv => (kv.Key, kv.Value.Text)).Concat(_picked.Select(kv => (kv.Key, kv.Value))).ToDictionary(kv => kv.Key, kv => kv.Item2);
+    /// <summary>Typed values, and picked ones unless an own value was typed for them.</summary>
+    public IReadOnlyDictionary<string, string> Values
+    {
+        get
+        {
+            var values = new Dictionary<string, string>(_picked);
+            foreach (var (key, box) in _boxes)
+            {
+                if (!values.ContainsKey(key) || !string.IsNullOrWhiteSpace(box.Text))
+                    values[key] = box.Text;
+            }
+            return values;
+        }
+    }
 }
