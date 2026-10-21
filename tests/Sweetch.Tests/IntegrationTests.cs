@@ -222,6 +222,46 @@ public class IntegrationTests : IClassFixture<IntegrationTests.Samples>
     }
 
     [Fact]
+    public async Task Trim_marks_keep_exactly_the_marked_frames()
+    {
+        if (!_s.Tools.Has(ExternalTool.Ffmpeg))
+            return;
+        // 23.976 fps: frame starts are not whole milliseconds, where an off-by-one would show.
+        var dir = Path.Combine(_s.Dir, "out", "frames");
+        Directory.CreateDirectory(dir);
+        var source = Path.Combine(dir, "ntsc.mp4");
+        await ProcessRunner.RunAsync(_s.Tools.Ffmpeg!, ["-hide_banner", "-y", "-f", "lavfi", "-i", "testsrc2=size=160x120:rate=24000/1001:duration=3",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", source], default);
+        var fps = await FfmpegBackend.FrameRateAsync(_s.Tools.Ffmpeg!, source);
+        Assert.Equal(24000.0 / 1001, fps!.Value, 9);
+        var frameMs = 1000 / fps!.Value;
+
+        // Start mark on frame 36, end mark on frame 40, both kept: 5 frames.
+        var op = Catalog.Build().Single(o => o.Id == "video.trim");
+        var parameters = new Dictionary<string, string>
+        {
+            ["start"] = FfmpegBackend.FormatTime(FfmpegBackend.FrameStart(36, frameMs)),
+            ["end"] = FfmpegBackend.FormatTime(FfmpegBackend.FrameEnd(40, frameMs)),
+        };
+        var result = await op.ExecuteAsync([new FileItem(source)], _s.Context(dir, parameters));
+
+        var frames = 0;
+        try
+        {
+            await ProcessRunner.RunAsync(_s.Tools.Ffmpeg!, ["-hide_banner", "-i", result.Outputs[0], "-map", "0:v:0", "-f", "null", "-"], default, line =>
+            {
+                if (System.Text.RegularExpressions.Regex.Match(line, @"frame=\s*(\d+)") is { Success: true } m)
+                    frames = int.Parse(m.Groups[1].Value);
+            });
+        }
+        finally
+        {
+            output.WriteLine($"{parameters["start"]} – {parameters["end"]}: {frames} frames");
+        }
+        Assert.Equal(5, frames);
+    }
+
+    [Fact]
     public async Task Video_without_audio_gives_clear_error()
     {
         if (!_s.Files.TryGetValue("mute", out var path))

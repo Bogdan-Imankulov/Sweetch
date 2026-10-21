@@ -279,7 +279,7 @@ internal sealed class TrimWindow : Window, IParameterWindow
         {
             if (wanted != _stillWanted)
                 return; // a newer frame was asked for meanwhile (key held down)
-            var at = Math.Floor(FrameIndex() * _frameMs) / 1000;
+            var at = FfmpegBackend.FrameStart(FrameIndex(), _frameMs);
             var file = System.IO.Path.Combine(_stills, $"{wanted}.bmp");
             await ProcessRunner.RunAsync(_ffmpeg, ["-hide_banner", "-nostdin", "-y", "-ss", at.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
                 "-i", _path, "-frames:v", "1", "-vf", "scale=-2:'min(720,ih)'", "-c:v", "bmp", file], default);
@@ -314,8 +314,8 @@ internal sealed class TrimWindow : Window, IParameterWindow
 
     private long FrameIndex() => (long)Math.Floor(_position / _frameMs + 1e-6);
 
-    /// <summary>Start of the frame on screen; for the end, the start of the next one, so the visible frame is kept.</summary>
-    private string Mark(bool end) => FfmpegBackend.FormatTime(Math.Floor((FrameIndex() + (end ? 1 : 0)) * _frameMs) / 1000.0);
+    /// <summary>A start or end mark that keeps the frame on screen.</summary>
+    private string Mark(bool end) => FfmpegBackend.FormatTime(end ? FfmpegBackend.FrameEnd(FrameIndex(), _frameMs) : FfmpegBackend.FrameStart(FrameIndex(), _frameMs));
 
     private void Seek(long ms, bool still)
     {

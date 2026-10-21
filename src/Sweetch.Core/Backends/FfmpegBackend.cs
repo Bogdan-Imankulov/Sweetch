@@ -32,8 +32,21 @@ public static partial class FfmpegBackend
         {
             // Without an output file ffmpeg always exits with an error; the stream info is printed before that.
         }
-        return fps is > 0 ? fps : null;
+        if (fps is not > 0)
+            return null;
+        // Printed rates are rounded (23.98); NTSC ones are really n·1000/1001, and the error adds up over frames.
+        var ntsc = Math.Round(fps.Value * 1.001) / 1.001;
+        return Math.Abs(ntsc - fps.Value) < 0.006 && Math.Abs(fps.Value - Math.Round(fps.Value)) > 0.001 ? ntsc : fps;
     }
+
+    /// <summary>Trim start (seconds) that keeps frame <paramref name="frame"/>: ffmpeg keeps frames at or after -ss.</summary>
+    public static double FrameStart(long frame, double frameMs) => Math.Floor(frame * frameMs) / 1000;
+
+    /// <summary>
+    /// Trim end (seconds) that keeps frame <paramref name="last"/> and drops the next. ffmpeg measures -t from
+    /// the first kept frame, which can sit up to 1 ms after the rounded start, so stop 1 ms short of the next frame.
+    /// </summary>
+    public static double FrameEnd(long last, double frameMs) => (Math.Floor((last + 1) * frameMs) - 1) / 1000;
 
     /// <summary>Encoder arguments for a target container.</summary>
     public static IReadOnlyList<string> CodecArgs(string format, Settings s, bool hasVideo = true)
@@ -163,5 +176,5 @@ public static partial class FfmpegBackend
     }
 
     public static string FormatTime(double seconds) =>
-        TimeSpan.FromSeconds(seconds).ToString(@"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture);
+        TimeSpan.FromMilliseconds(Math.Round(seconds * 1000)).ToString(@"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture);
 }
