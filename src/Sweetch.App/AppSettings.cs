@@ -39,7 +39,7 @@ public sealed class AppSettings
 
     public bool RevealResult { get; set; }
 
-    /// <summary>Results get names without spaces or brackets (my_video_trimmed.mp4), for terminals.</summary>
+    /// <summary>Results get plain ASCII names without spaces or brackets (moe_video_obrezano.mp4), for terminals.</summary>
     public bool PlainNames { get; set; }
     public bool Paused { get; set; }
     public bool FirstRunDone { get; set; }

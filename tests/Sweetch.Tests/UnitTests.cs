@@ -56,7 +56,9 @@ public class OutputPathTests
 {
     [Theory]
     [InlineData("my video (trimmed)", "my_video_trimmed")]
-    [InlineData("моё видео (кадр 00-00-01.440)", "моё_видео_кадр_00-00-01.440")]
+    [InlineData("моё видео (кадр 00-00-01.440)", "moe_video_kadr_00-00-01.440")]
+    [InlineData("Щука Юля Объём", "Shchuka_Yulya_Obem")]
+    [InlineData("Žluťoučký kůň 東京", "Zlutoucky_kun")]
     [InlineData("a & b's [final]!", "a_b_s_final")]
     [InlineData("()", "file")]
     public void PlainName_has_nothing_to_quote(string name, string expected) => Assert.Equal(expected, OutputPaths.PlainName(name));
