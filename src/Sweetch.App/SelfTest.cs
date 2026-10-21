@@ -164,6 +164,9 @@ internal static class SelfTest
         var encode = new ParameterDialog(core.Single(o => o.Id == "video.encode"), [new FileItem(N(@"C:\Videa\klip.mov", @"C:\Videos\clip.mov"))]);
         Check(encode.Values["codec"] == "H.264", "codec choice default");
         SaveWindow(encode, Path.Combine(outDir, "encode-dialog.png"), 520);
+        var speed = new ParameterDialog(core.Single(o => o.Id == "video.speed2"), [new FileItem(N(@"C:\Videa\klip.mov", @"C:\Videos\clip.mov"))]);
+        Check(speed.Values["speed"] == "2×", "speed choice default");
+        SaveWindow(speed, Path.Combine(outDir, "speed-dialog.png"), 620);
         log.Add($"ok {Path.GetFileName(outDir)}/parameter dialog");
     }
 

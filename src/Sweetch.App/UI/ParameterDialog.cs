@@ -47,6 +47,7 @@ internal sealed class ParameterDialog : Window, IParameterWindow
             Margin = new Thickness(0, 0, 0, 12),
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = 420,
+            HorizontalAlignment = HorizontalAlignment.Left,
         });
 
         foreach (var p in op.Parameters)
@@ -96,7 +97,7 @@ internal sealed class ParameterDialog : Window, IParameterWindow
                 stack.Children.Add(box);
             }
             if (p.Hint is not null)
-                stack.Children.Add(new TextBlock { Text = p.Hint, Opacity = 0.65, FontSize = 11.5, Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap, MaxWidth = 460 });
+                stack.Children.Add(new TextBlock { Text = p.Hint, Opacity = 0.65, FontSize = 11.5, Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap, MaxWidth = 460, HorizontalAlignment = HorizontalAlignment.Left });
         }
 
         var ok = Controls.Button(T("Run", "Выполнить"), () => DialogResult = true, primary: true);
