@@ -59,6 +59,43 @@ public static class OutputPaths
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
     }
+
+    /// <summary>"my video (trimmed)" → "my_video_trimmed": nothing a shell would need quoted.</summary>
+    public static string PlainName(string name)
+    {
+        var chars = name.Select(c => char.IsLetterOrDigit(c) || c is '.' or '-' or '_' ? c : '_').ToArray();
+        var plain = System.Text.RegularExpressions.Regex.Replace(new string(chars), "_{2,}", "_").Trim('_');
+        return plain.Length == 0 ? "file" : plain;
+    }
+
+    /// <summary>
+    /// Renames a produced file or folder to a plain name (and, with <paramref name="recurse"/>, what's inside);
+    /// returns the new path. Taken names get "_2", "_3"….
+    /// </summary>
+    public static string MakePlain(string path, bool recurse)
+    {
+        path = path.TrimEnd('\\', '/');
+        var isDir = Directory.Exists(path);
+        if (isDir && recurse)
+        {
+            foreach (var child in Directory.GetFileSystemEntries(path))
+                MakePlain(child, recurse: true);
+        }
+        var name = Path.GetFileName(path);
+        var ext = isDir ? "" : Path.GetExtension(name);
+        var stem = PlainName(name[..^ext.Length]);
+        if (stem + ext == name)
+            return path;
+        var dir = Path.GetDirectoryName(path)!;
+        var target = Path.Combine(dir, stem + ext);
+        for (var i = 2; File.Exists(target) || Directory.Exists(target); i++)
+            target = Path.Combine(dir, $"{stem}_{i}{ext}");
+        if (isDir)
+            Directory.Move(path, target);
+        else
+            File.Move(path, target);
+        return target;
+    }
 }
 
 public sealed class ConversionException(string message, Exception? inner = null) : Exception(message, inner);

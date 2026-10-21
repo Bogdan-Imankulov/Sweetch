@@ -54,6 +54,36 @@ public class RelightTests
 
 public class OutputPathTests
 {
+    [Theory]
+    [InlineData("my video (trimmed)", "my_video_trimmed")]
+    [InlineData("моё видео (кадр 00-00-01.440)", "моё_видео_кадр_00-00-01.440")]
+    [InlineData("a & b's [final]!", "a_b_s_final")]
+    [InlineData("()", "file")]
+    public void PlainName_has_nothing_to_quote(string name, string expected) => Assert.Equal(expected, OutputPaths.PlainName(name));
+
+    [Fact]
+    public void MakePlain_renames_without_overwriting()
+    {
+        var dir = OutputPaths.TempDirectory();
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "my_clip_trimmed.mp4"), "taken");
+            var produced = Path.Combine(dir, "my clip (trimmed).mp4");
+            File.WriteAllText(produced, "new");
+            Assert.Equal(Path.Combine(dir, "my_clip_trimmed_2.mp4"), OutputPaths.MakePlain(produced, recurse: false));
+
+            var pages = Directory.CreateDirectory(Path.Combine(dir, "doc (pages)")).FullName;
+            File.WriteAllText(Path.Combine(pages, "doc - 01.pdf"), "");
+            var renamed = OutputPaths.MakePlain(pages, recurse: true);
+            Assert.Equal(Path.Combine(dir, "doc_pages"), renamed);
+            Assert.True(File.Exists(Path.Combine(renamed, "doc_-_01.pdf")));
+        }
+        finally
+        {
+            OutputPaths.TryDelete(dir);
+        }
+    }
+
     [Fact]
     public void Unique_appends_counter()
     {

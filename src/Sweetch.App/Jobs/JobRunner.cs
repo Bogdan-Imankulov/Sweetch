@@ -79,6 +79,11 @@ internal sealed class JobRunner(AppSettings settings, ToolLocator tools)
         try
         {
             var result = await Task.Run(() => op.ExecuteAsync(items, context));
+            if (settings.PlainNames)
+            {
+                // Inside an extracted archive the names are the user's own; leave them.
+                result = result with { Outputs = result.Outputs.Select(o => OutputPaths.MakePlain(o, recurse: op.Id != "archive.extract")).ToList() };
+            }
             Produced?.Invoke(result.Outputs);
             card.Complete(result.Outputs, result.Message, result.Note);
             if (!automatic && settings.RevealResult && result.Outputs.Count > 0)

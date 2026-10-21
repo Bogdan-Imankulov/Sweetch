@@ -338,6 +338,14 @@ internal sealed partial class SettingsWindow : Window
                 Save();
             }), glyph: ""));
 
+        root.Children.Add(Card(T("Names without spaces", "Имена без пробелов"),
+            T("my video (trimmed).mp4 → my_video_trimmed.mp4 — opens in a terminal without quotes", "моё видео (обрезано).mp4 → моё_видео_обрезано.mp4 — открывается в терминале без кавычек"),
+            Toggle(_settings.PlainNames, v =>
+            {
+                _settings.PlainNames = v;
+                Save();
+            }), glyph: Glyphs.Text));
+
         root.Children.Add(SectionHeader(T("System", "Система")));
         root.Children.Add(Card(T("Start when I sign in", "Запускать при входе в систему"), null,
             Toggle(ShellIntegration.IsAutostartEnabled, v => Apply(() => ShellIntegration.SetAutostart(v))), glyph: ""));
