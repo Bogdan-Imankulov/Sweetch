@@ -111,8 +111,8 @@ internal sealed class TrimWindow : Window, IParameterWindow
         stack.Children.Add(transport);
 
         var marks = new WrapPanel { Margin = new Thickness(0, 14, 0, 0) };
-        marks.Children.Add(Field(T("Start", "Начало"), _start, T("[  Set start  (I)", "[  Начало здесь  (I)"), () => _start.Text = Mark(end: false)));
-        marks.Children.Add(Field(T("End", "Конец"), _end, T("Set end  (O)  ]", "Конец здесь  (O)  ]"), () => _end.Text = Mark(end: true)));
+        marks.Children.Add(Field(T("Start", "Начало"), _start, T("[  Set start  (I)", "[  Начало здесь  (I)"), () => MarkHere(end: false)));
+        marks.Children.Add(Field(T("End", "Конец"), _end, T("Set end  (O)  ]", "Конец здесь  (O)  ]"), () => MarkHere(end: true)));
         stack.Children.Add(marks);
         _start.TextChanged += (_, _) => ShowSelection();
         _end.TextChanged += (_, _) => ShowSelection();
@@ -221,8 +221,8 @@ internal sealed class TrimWindow : Window, IParameterWindow
             case Key.Space: TogglePlay(); break;
             case Key.Left: Step(shift ? -1000 / _frameMs : -1); break;
             case Key.Right: Step(shift ? 1000 / _frameMs : 1); break;
-            case Key.I: _start.Text = Mark(end: false); break;
-            case Key.O: _end.Text = Mark(end: true); break;
+            case Key.I: MarkHere(end: false); break;
+            case Key.O: MarkHere(end: true); break;
             case Key.Enter: DialogResult = true; break;
             case Key.Escape: DialogResult = false; break;
             default: return;
@@ -309,8 +309,14 @@ internal sealed class TrimWindow : Window, IParameterWindow
 
     private long FrameIndex() => (long)Math.Floor(_position / _frameMs + 1e-6);
 
-    /// <summary>A start or end mark that keeps the frame on screen.</summary>
-    private string Mark(bool end) => FfmpegBackend.FormatTime(end ? FfmpegBackend.FrameEnd(FrameIndex(), _frameMs) : FfmpegBackend.FrameStart(FrameIndex(), _frameMs));
+    /// <summary>Sets the start or end so that the frame on screen is kept.</summary>
+    internal void MarkHere(bool end)
+    {
+        if (end)
+            _end.Text = FfmpegBackend.FormatTime(FfmpegBackend.FrameEnd(FrameIndex(), _frameMs));
+        else
+            _start.Text = FfmpegBackend.FormatTime(FfmpegBackend.FrameStart(FrameIndex(), _frameMs));
+    }
 
     private void Seek(long ms, bool still)
     {

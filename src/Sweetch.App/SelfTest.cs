@@ -358,7 +358,13 @@ internal static class SelfTest
         video.Step(-1);
         Pump(() => false, TimeSpan.FromSeconds(1));
         Check(video.Position == 36 * 40, $"frame step back ({video.Position} ms)");
-        CaptureScreen(video, Path.Combine(dir, "frame-36.png"));
+        video.MarkHere(end: false);
+        video.Step(40);
+        Pump(() => false, TimeSpan.FromSeconds(1));
+        video.MarkHere(end: true);
+        Check(video.Values["start"] == "00:00:01.440" && video.Values["end"] == "00:00:03.079", $"marks keep frames 36–76 ({video.Values["start"]} – {video.Values["end"]})");
+        Pump(() => false, TimeSpan.FromSeconds(0.5));
+        CaptureScreen(video, Path.Combine(dir, "marked.png"));
         video.Close();
         log.Add("ok player");
     }
