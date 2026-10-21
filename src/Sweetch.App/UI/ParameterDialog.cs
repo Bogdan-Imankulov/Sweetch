@@ -57,23 +57,25 @@ internal sealed class ParameterDialog : Window, IParameterWindow
                 var key = p.Key;
                 _picked[key] = p.DefaultValue;
                 stack.Children.Add(Controls.Segmented(choices.Select(c => (c, c)).ToList(), p.DefaultValue, v => _picked[key] = v));
-                continue;
             }
-            var box = new TextBox
+            else
             {
-                Text = p.DefaultValue,
-                MinWidth = 300,
-                Padding = new Thickness(8, 6, 8, 6),
-                FontSize = 14,
-                Background = Theme.Card,
-                Foreground = Theme.Text,
-                CaretBrush = Theme.Text,
-                BorderBrush = Theme.PanelBorder,
-            };
-            _boxes[p.Key] = box;
-            stack.Children.Add(box);
+                var box = new TextBox
+                {
+                    Text = p.DefaultValue,
+                    MinWidth = 300,
+                    Padding = new Thickness(8, 6, 8, 6),
+                    FontSize = 14,
+                    Background = Theme.Card,
+                    Foreground = Theme.Text,
+                    CaretBrush = Theme.Text,
+                    BorderBrush = Theme.PanelBorder,
+                };
+                _boxes[p.Key] = box;
+                stack.Children.Add(box);
+            }
             if (p.Hint is not null)
-                stack.Children.Add(new TextBlock { Text = p.Hint, Opacity = 0.65, FontSize = 11.5, Margin = new Thickness(0, 3, 0, 0) });
+                stack.Children.Add(new TextBlock { Text = p.Hint, Opacity = 0.65, FontSize = 11.5, Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap, MaxWidth = 460 });
         }
 
         var ok = Controls.Button(T("Run", "Выполнить"), () => DialogResult = true, primary: true);
