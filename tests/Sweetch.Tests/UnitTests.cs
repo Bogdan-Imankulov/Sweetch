@@ -27,6 +27,29 @@ public class FormatTests
     }
 }
 
+public class RelightTests
+{
+    [Fact]
+    public void Neutral_values_pass_the_picture_through() =>
+        Assert.Equal("null", Relight.Filter(Relight.Parameters().ToDictionary(p => p.Key, p => p.DefaultValue)));
+
+    [Fact]
+    public void Filter_uses_invariant_numbers_and_clamps()
+    {
+        var saved = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("ru-RU");
+        try
+        {
+            var filter = Relight.Filter(new Dictionary<string, string> { ["exposure"] = "25", ["warmth"] = "100", ["gamma"] = "500", ["tint"] = "junk" });
+            Assert.Equal("exposure=exposure=0.5,colortemperature=temperature=3250,format=yuv444p,eq=contrast=1:brightness=0:gamma=2:saturation=1", filter);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = saved;
+        }
+    }
+}
+
 public class OutputPathTests
 {
     [Fact]

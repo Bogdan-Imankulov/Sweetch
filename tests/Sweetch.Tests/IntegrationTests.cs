@@ -262,6 +262,30 @@ public class IntegrationTests : IClassFixture<IntegrationTests.Samples>
     }
 
     [Fact]
+    public async Task Relight_runs_every_knob_and_brightens()
+    {
+        if (!_s.Tools.Has(ExternalTool.Ffmpeg))
+            return;
+        var all = Catalog.Build();
+        var everything = Relight.Knobs().ToDictionary(k => k.Key, k => "40");
+        var dir = Path.Combine(_s.Dir, "out", "relight");
+        foreach (var (id, key) in new[] { ("image.relight", "png"), ("image.relight", "jpg"), ("video.relight", "mp4") })
+        {
+            var result = await all.Single(o => o.Id == id).ExecuteAsync([new FileItem(_s.Files[key])], _s.Context(dir, everything));
+            Assert.True(new FileInfo(result.Outputs[0]).Length > 0, $"{id} on {key}");
+        }
+
+        var brighter = await all.Single(o => o.Id == "image.relight").ExecuteAsync([new FileItem(_s.Files["jpg"])],
+            _s.Context(Path.Combine(dir, "exposure"), new Dictionary<string, string> { ["exposure"] = "50" }));
+        static double Mean(string path)
+        {
+            using var image = new ImageMagick.MagickImage(path);
+            return image.Statistics().Composite()!.Mean;
+        }
+        Assert.True(Mean(brighter.Outputs[0]) > Mean(_s.Files["jpg"]) * 1.2, "one stop of exposure brightens the photo");
+    }
+
+    [Fact]
     public async Task Video_without_audio_gives_clear_error()
     {
         if (!_s.Files.TryGetValue("mute", out var path))

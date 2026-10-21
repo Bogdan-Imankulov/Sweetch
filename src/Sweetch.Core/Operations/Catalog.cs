@@ -53,6 +53,12 @@ public static class Catalog
         ImageEdit(ops, "image.flip", T("Mirror", "Отразить"), Glyphs.Flip, null, T("mirrored", "отражено"), img => img.Flop());
         ImageEdit(ops, "image.square", T("Square", "Квадрат"), Glyphs.Crop, T("crop", "обрезка"), T("square", "квадрат"), ImageBackend.CropSquare);
         ImageEdit(ops, "image.grayscale", T("Grayscale", "Оттенки серого"), Glyphs.Color, null, T("grayscale", "оттенки серого"), ImageBackend.Grayscale);
+        ops.Add(new PerFileOperation("image.relight", WheelKind.Tools, T("Light & color", "Свет и цвет"), Glyphs.Brightness, Formats.ImageInputs,
+            async (item, ctx, _) => [await OutputPaths.ProduceAsync(ctx.OutputDirFor(item.Path), $"{item.BaseName} ({T("edited", "обработано")})",
+                ImageBackend.OutputFormatFor(item.Format), tmp => ImageBackend.FilterAsync(item.Path, tmp, ImageBackend.OutputFormatFor(item.Format),
+                    Relight.Filter(ctx.Parameters), ctx.Settings.JpegQuality, ctx))],
+            subtitle: T("exposure, warmth", "экспозиция, теплота"))
+        { Requires = [ExternalTool.Ffmpeg], Parameters = Relight.Parameters() });
         ImageEdit(ops, "image.strip", T("No metadata", "Без метаданных"), Glyphs.Clear, "GPS, EXIF", T("no metadata", "без метаданных"), img => img.Strip());
         ops.Add(new BatchOperation("image.merge.pdf", WheelKind.Tools, T("Merge to PDF", "Объединить в PDF"), Glyphs.Merge,
             BatchOperation.AllOf(Formats.ImageInputs, min: 2),
@@ -120,6 +126,11 @@ public static class Catalog
                 : [.. H264(ctx.Settings.VideoCrf, "medium", null, null), "-an"],
             subtitle: T("muted", "без звука"));
         ops.Add(Trim("video.trim", Formats.Video));
+        ops.Add(new PerFileOperation("video.relight", WheelKind.Tools, T("Light & color", "Свет и цвет"), Glyphs.Brightness, Formats.Video,
+            async (item, ctx, p) => [await FfmpegBackend.TransformAsync(item, T("edited", "обработано"), ctx, p,
+                H264(ctx.Settings.VideoCrf, "medium", Relight.Filter(ctx.Parameters), "160k"), "mp4")],
+            subtitle: T("exposure, warmth", "экспозиция, теплота"))
+        { Requires = [ExternalTool.Ffmpeg], Parameters = Relight.Parameters() });
         Ffmpeg(ops, "video.rotate", T("Rotate", "Повернуть"), Glyphs.Rotate, Formats.Video, T("rotated", "повёрнуто"),
             (item, ctx) => H264(ctx.Settings.VideoCrf, "medium", "transpose=1", "160k"), outputFormat: _ => "mp4", subtitle: T("right", "вправо"));
         Ffmpeg(ops, "video.speed2", T("Speed up", "Ускорить"), Glyphs.Play, Formats.Video, "2×",
