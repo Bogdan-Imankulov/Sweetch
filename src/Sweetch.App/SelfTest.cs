@@ -373,6 +373,15 @@ internal static class SelfTest
         CaptureScreen(video, Path.Combine(dir, "marked.png"));
         video.Close();
 
+        var watchAction = Sweetchs.Build(new AppSettings(), () => { }).Single(o => o.Id == "action.watch");
+        Check(watchAction.AppliesTo([new FileItem(mp4)]) && !watchAction.AppliesTo([new FileItem(Path.Combine(dir, "doc.pdf"))]), "watch action is offered for video only");
+        var watch = new PlayerWindow(null, [new FileItem(mp4)], tools);
+        watch.Show();
+        Pump(() => watch.Position > 500, TimeSpan.FromSeconds(15));
+        Check(watch.Position > 500, $"watch starts playing by itself ({watch.Position} ms)");
+        CaptureScreen(watch, Path.Combine(dir, "watch.png"));
+        watch.Close();
+
         var picker = new PlayerWindow(WheelController.BuildOperations().Single(o => o.Id == "video.thumbnail"), [new FileItem(mp4)], tools);
         picker.Show();
         Pump(() => picker.Length > 0, TimeSpan.FromSeconds(15));

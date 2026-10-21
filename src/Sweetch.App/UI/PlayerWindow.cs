@@ -12,9 +12,9 @@ using MediaPlayer = LibVLCSharp.Shared.MediaPlayer;
 namespace Sweetch.App.UI;
 
 /// <summary>
-/// A player for trim and frame export: play with sound, scrub, step frame by frame, then mark start/end
-/// (trim) or pick frames (export). Produces the same values as the plain parameter dialog
-/// ("start"/"end" or "times"), so "repeat last" keeps working.
+/// A player for watching, trim and frame export: play with sound, scrub, step frame by frame, then mark
+/// start/end (trim) or pick frames (export). Produces the same values as the plain parameter dialog
+/// ("start"/"end" or "times"), so "repeat last" keeps working. Without an operation it is just a player.
 /// </summary>
 internal sealed class PlayerWindow : Window, IParameterWindow
 {
@@ -29,6 +29,7 @@ internal sealed class PlayerWindow : Window, IParameterWindow
     private readonly TextBox _end = Controls.TextField("", 20);
     private readonly TextBox _times = Controls.TextField("", 4000);
     private readonly bool _pickFrames;
+    private readonly bool _watch;
     private readonly TextBlock _playGlyph;
     private readonly Image _still = new() { Stretch = Stretch.Uniform, Visibility = Visibility.Hidden };
     private readonly string _path;
@@ -42,19 +43,21 @@ internal sealed class PlayerWindow : Window, IParameterWindow
     private double _frameMs = 40;
     private bool _syncing;
 
-    public PlayerWindow(Operation op, IReadOnlyList<FileItem> items, ToolLocator tools)
+    /// <param name="op">Trim or frames; null to just watch.</param>
+    public PlayerWindow(Operation? op, IReadOnlyList<FileItem> items, ToolLocator tools)
     {
-        Title = op.Label;
+        _watch = op is null;
+        Title = op?.Label ?? T("Watch", "Просмотр");
         SizeToContent = SizeToContent.WidthAndHeight;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Topmost = true;
+        Topmost = !_watch;
         Theme.Refresh();
         Background = Theme.Page;
         FontFamily = Theme.UiFont;
         Foreground = Theme.Text;
 
-        _pickFrames = op.Parameters.Any(p => p.Key == "times");
+        _pickFrames = op?.Parameters.Any(p => p.Key == "times") == true;
         _path = System.IO.Path.GetFullPath(items[0].Path);
         _ffmpeg = tools.Ffmpeg;
         _vlc ??= CreateVlc();
@@ -121,7 +124,7 @@ internal sealed class PlayerWindow : Window, IParameterWindow
             var add = Field(T("Frames", "Кадры"), _times, T("+  Add frame  (S)", "+  Добавить кадр  (S)"), AddFrame);
             marks.Children.Add(add);
         }
-        else
+        else if (!_watch)
         {
             marks.Children.Add(Field(T("Start", "Начало"), _start, T("[  Set start  (I)", "[  Начало здесь  (I)"), () => MarkHere(end: false)));
             marks.Children.Add(Field(T("End", "Конец"), _end, T("Set end  (O)  ]", "Конец здесь  (O)  ]"), () => MarkHere(end: true)));
@@ -131,7 +134,8 @@ internal sealed class PlayerWindow : Window, IParameterWindow
         stack.Children.Add(marks);
         stack.Children.Add(new TextBlock
         {
-            Text = _pickFrames
+            Text = _watch ? T("Space — play/pause · ←/→ — frame · Shift+←/→ — second", "Пробел — пауза · ←/→ — кадр · Shift+←/→ — секунда")
+                : _pickFrames
                 ? T("Space — play/pause · ←/→ — frame · Shift+←/→ — second · S — add the frame on screen · each frame is saved as PNG; empty = pick one automatically",
                     "Пробел — пауза · ←/→ — кадр · Shift+←/→ — секунда · S — добавить кадр с экрана · каждый кадр сохранится в PNG; пусто = выбрать автоматически")
                 : T("Space — play/pause · ←/→ — frame · Shift+←/→ — second · I/O — start/end · empty end = until the end",
@@ -146,8 +150,15 @@ internal sealed class PlayerWindow : Window, IParameterWindow
         ok.Margin = new Thickness(0, 0, 8, 0);
         var cancel = Controls.Button(T("Cancel", "Отмена"), () => DialogResult = false);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 18, 0, 0) };
-        buttons.Children.Add(ok);
-        buttons.Children.Add(cancel);
+        if (_watch)
+        {
+            buttons.Children.Add(Controls.Button(T("Close", "Закрыть"), Close));
+        }
+        else
+        {
+            buttons.Children.Add(ok);
+            buttons.Children.Add(cancel);
+        }
         stack.Children.Add(buttons);
         Content = stack;
 
@@ -174,6 +185,11 @@ internal sealed class PlayerWindow : Window, IParameterWindow
                 _frameMs = 1000 / fps;
             await _media.Parse(MediaParseOptions.ParseLocal);
             SetLength(_media.Duration);
+            if (_watch)
+            {
+                _player.Play();
+                return;
+            }
             if (_video is null)
                 return;
             // Show the first frame: LibVLC creates the picture only once playback starts
@@ -243,7 +259,8 @@ internal sealed class PlayerWindow : Window, IParameterWindow
             case Key.I when !_pickFrames: MarkHere(end: false); break;
             case Key.O when !_pickFrames: MarkHere(end: true); break;
             case Key.S when _pickFrames: AddFrame(); break;
-            case Key.Enter: DialogResult = true; break;
+            case Key.Enter when !_watch: DialogResult = true; break;
+            case Key.Escape when _watch: Close(); break;
             case Key.Escape: DialogResult = false; break;
             default: return;
         }
