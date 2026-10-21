@@ -19,6 +19,7 @@ internal sealed class ParameterDialog : Window, IParameterWindow
     public static Window For(Operation op, IReadOnlyList<FileItem> items, ToolLocator tools) => op.Id switch
     {
         "video.trim" or "audio.trim" => new TrimWindow(op, items, tools),
+        "video.relight" or "image.relight" => new RelightWindow(op, items, tools),
         _ => new ParameterDialog(op, items),
     };
 

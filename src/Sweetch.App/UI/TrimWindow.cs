@@ -154,7 +154,7 @@ internal sealed class TrimWindow : Window, IParameterWindow
         {
             ForegroundHelper.Force(this);
             // LibVLC's own frame rate is an estimate (24.75 for a 25 fps file); ffmpeg reads the stream's.
-            if (_video is not null && tools.Ffmpeg is { } ffmpeg && await FfmpegBackend.FrameRateAsync(ffmpeg, items[0].Path) is { } fps)
+            if (_video is not null && tools.Ffmpeg is { } ffmpeg && (await FfmpegBackend.ProbeAsync(ffmpeg, items[0].Path)).Fps is { } fps)
                 _frameMs = 1000 / fps;
             await _media.Parse(MediaParseOptions.ParseLocal);
             SetLength(_media.Duration);
@@ -285,12 +285,7 @@ internal sealed class TrimWindow : Window, IParameterWindow
                 "-i", _path, "-frames:v", "1", "-vf", "scale=-2:'min(720,ih)'", "-c:v", "bmp", file], default);
             if (wanted != _stillWanted || _player.IsPlaying || !System.IO.File.Exists(file))
                 return;
-            var bitmap = new System.Windows.Media.Imaging.BitmapImage();
-            bitmap.BeginInit();
-            bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-            bitmap.UriSource = new Uri(file);
-            bitmap.EndInit();
-            _still.Source = bitmap;
+            _still.Source = Controls.Bitmap(file);
             ShowVideo(false);
             OutputPaths.TryDelete(file);
         }

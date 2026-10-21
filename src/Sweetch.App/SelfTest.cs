@@ -43,7 +43,7 @@ internal static class SelfTest
 
             log.AddRange(SmokeTest.Run(Path.Combine(outDir, "smoke")));
             // Saved after every step, so a hard crash (which skips the catch below) still shows where it stopped.
-            foreach (var step in new Action[] { () => TestSettingsRoundTrip(log), () => TestExplorerCom(outDir, log), () => TestDrops(log), () => TestWatchFolder(outDir, log), () => TestOcr(outDir, log), () => TestPlayer(outDir, log), () => log.Add("ok updates disabled: no network request") })
+            foreach (var step in new Action[] { () => TestSettingsRoundTrip(log), () => TestExplorerCom(outDir, log), () => TestDrops(log), () => TestWatchFolder(outDir, log), () => TestOcr(outDir, log), () => TestPlayer(outDir, log), () => TestRelight(outDir, log), () => log.Add("ok updates disabled: no network request") })
             {
                 File.WriteAllLines(Path.Combine(outDir, "self-test.txt"), log);
                 step();
@@ -361,6 +361,39 @@ internal static class SelfTest
         CaptureScreen(video, Path.Combine(dir, "frame-36.png"));
         video.Close();
         log.Add("ok player");
+    }
+
+    /// <summary>The light & color window renders its live preview for a photo and a video.</summary>
+    private static void TestRelight(string outDir, List<string> log)
+    {
+        var tools = new ToolLocator();
+        if (!tools.Has(ExternalTool.Ffmpeg))
+        {
+            log.Add("skipped relight (no FFmpeg)");
+            return;
+        }
+        var dir = Path.Combine(outDir, "relight");
+        Directory.CreateDirectory(dir);
+        var photo = Path.Combine(dir, "фото.jpg");
+        var clip = Path.Combine(dir, "clip.mp4");
+        ProcessRunner.RunAsync(tools.Require(ExternalTool.Ffmpeg), ["-hide_banner", "-y", "-f", "lavfi", "-i", "gradients=size=1280x720:seed=7", "-frames:v", "1", photo], default).GetAwaiter().GetResult();
+        ProcessRunner.RunAsync(tools.Require(ExternalTool.Ffmpeg), ["-hide_banner", "-y", "-f", "lavfi", "-i", "testsrc2=size=640x360:duration=3", "-pix_fmt", "yuv420p", clip], default).GetAwaiter().GetResult();
+        var ops = WheelController.BuildOperations();
+        foreach (var (id, file) in new[] { ("image.relight", photo), ("video.relight", clip) })
+        {
+            var window = new RelightWindow(ops.Single(o => o.Id == id), [new FileItem(file)], tools);
+            window.Show();
+            Pump(() => window.Rendered, TimeSpan.FromSeconds(20));
+            Check(window.Rendered, $"{id} preview");
+            window.Set("exposure", 40);
+            window.Set("warmth", 70);
+            Pump(() => false, TimeSpan.FromSeconds(0.5));
+            Pump(() => window.Rendered, TimeSpan.FromSeconds(20));
+            Check(window.Values["warmth"] == "70", $"{id} values");
+            SaveWindow(window, Path.Combine(dir, id + ".png"), 1000);
+            window.Close();
+        }
+        log.Add("ok relight");
     }
 
     private static void WriteTone(string path, double seconds)

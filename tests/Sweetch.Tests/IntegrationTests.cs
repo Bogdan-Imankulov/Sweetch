@@ -232,7 +232,7 @@ public class IntegrationTests : IClassFixture<IntegrationTests.Samples>
         var source = Path.Combine(dir, "ntsc.mp4");
         await ProcessRunner.RunAsync(_s.Tools.Ffmpeg!, ["-hide_banner", "-y", "-f", "lavfi", "-i", "testsrc2=size=160x120:rate=24000/1001:duration=3",
             "-c:v", "libx264", "-pix_fmt", "yuv420p", source], default);
-        var fps = await FfmpegBackend.FrameRateAsync(_s.Tools.Ffmpeg!, source);
+        var (_, fps) = await FfmpegBackend.ProbeAsync(_s.Tools.Ffmpeg!, source);
         Assert.Equal(24000.0 / 1001, fps!.Value, 9);
         var frameMs = 1000 / fps!.Value;
 
@@ -282,7 +282,7 @@ public class IntegrationTests : IClassFixture<IntegrationTests.Samples>
             using var image = new ImageMagick.MagickImage(path);
             return image.Statistics().Composite()!.Mean;
         }
-        Assert.True(Mean(brighter.Outputs[0]) > Mean(_s.Files["jpg"]) * 1.2, "one stop of exposure brightens the photo");
+        Assert.True(Mean(brighter.Outputs[0]) > Mean(_s.Files["jpg"]) * 1.05, "+50 exposure brightens the photo");
     }
 
     [Fact]

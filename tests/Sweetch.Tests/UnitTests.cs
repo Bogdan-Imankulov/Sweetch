@@ -41,7 +41,9 @@ public class RelightTests
         try
         {
             var filter = Relight.Filter(new Dictionary<string, string> { ["exposure"] = "25", ["warmth"] = "100", ["gamma"] = "500", ["tint"] = "junk" });
-            Assert.Equal("exposure=exposure=0.5,colortemperature=temperature=3250,format=yuv444p,eq=contrast=1:brightness=0:gamma=2:saturation=1", filter);
+            Assert.StartsWith("curves=all='0/0 0.1/0.1277 0.2/", filter);
+            Assert.EndsWith(" 1/1',colortemperature=temperature=4288:pl=1,format=yuv444p,eq=contrast=1:brightness=0:gamma=2:saturation=1", filter);
+            Assert.DoesNotContain("colorbalance", filter); // "junk" is ignored
         }
         finally
         {

@@ -39,11 +39,16 @@ public static class Relight
 
         var chain = new List<string>();
         if (V("exposure") is var exposure and not 0)
-            chain.Add(F($"exposure=exposure={exposure * 2:0.###}")); // ±2 EV
+        {
+            // ±1.5 EV as the curve 1 − (1 − x)^k: multiplies shadows by k like real exposure, but rolls
+            // highlights off instead of clipping them (ffmpeg's exposure filter blows skies out to white).
+            var k = Math.Pow(2, exposure * 1.5);
+            chain.Add("curves=all='" + string.Join(" ", Enumerable.Range(0, 11).Select(i => F($"{i / 10.0:0.#}/{1 - Math.Pow(1 - i / 10.0, k):0.####}"))) + "'");
+        }
         if ((V("shadows"), V("highlights")) is var (shadows, highlights) && (shadows, highlights) != (0, 0))
-            chain.Add(F($"curves=all='0/0 0.25/{0.25 + shadows * 0.15:0.###} 0.75/{0.75 + highlights * 0.15:0.###} 1/1'"));
+            chain.Add(F($"curves=all='0/0 0.25/{0.25 + shadows * 0.2:0.###} 0.75/{0.75 + highlights * 0.2:0.###} 1/1'"));
         if (V("warmth") is var warmth and not 0)
-            chain.Add(F($"colortemperature=temperature={6500 * Math.Pow(2, -warmth):0}")); // 13000 K (cool) … 3250 K (warm)
+            chain.Add(F($"colortemperature=temperature={6500 * Math.Pow(2, -warmth * 0.6):0}:pl=1")); // ≈9850 K (cool) … ≈4290 K (warm), same lightness
         if (V("tint") is var tint and not 0)
             chain.Add(F($"colorbalance=gm={-tint * 0.3:0.###}")); // + is magenta, like photo editors
         if (V("vibrance") is var vibrance and not 0)
@@ -53,7 +58,7 @@ public static class Relight
         {
             // eq works in YUV; 4:4:4 keeps photo colour edges sharp.
             chain.Add("format=yuv444p");
-            chain.Add(F($"eq=contrast={1 + contrast:0.###}:brightness={brightness * 0.3:0.###}:gamma={Math.Pow(2, gamma):0.###}:saturation={1 + saturation:0.###}"));
+            chain.Add(F($"eq=contrast={1 + contrast * 0.5:0.###}:brightness={brightness * 0.2:0.###}:gamma={Math.Pow(2, gamma):0.###}:saturation={1 + saturation:0.###}"));
         }
         return chain.Count == 0 ? "null" : string.Join(",", chain);
     }

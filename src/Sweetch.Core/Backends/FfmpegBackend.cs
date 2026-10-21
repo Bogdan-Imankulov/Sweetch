@@ -16,14 +16,16 @@ public static partial class FfmpegBackend
     [GeneratedRegex(@"Video:.*?(\d+(?:\.\d+)?) fps")]
     private static partial Regex FpsRegex();
 
-    /// <summary>Frame rate of the first video stream as ffmpeg reports it; null for audio or when unknown.</summary>
-    public static async Task<double?> FrameRateAsync(string ffmpeg, string path, CancellationToken ct = default)
+    /// <summary>Duration (seconds) and frame rate of the first video stream as ffmpeg reports them; null when unknown.</summary>
+    public static async Task<(double? Duration, double? Fps)> ProbeAsync(string ffmpeg, string path, CancellationToken ct = default)
     {
-        double? fps = null;
+        double? duration = null, fps = null;
         try
         {
             await ProcessRunner.RunAsync(ffmpeg, ["-hide_banner", "-nostdin", "-i", path], ct, line =>
             {
+                if (duration is null && DurationRegex().Match(line) is { Success: true } d)
+                    duration = Seconds(d);
                 if (fps is null && FpsRegex().Match(line) is { Success: true } m)
                     fps = double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
             }).ConfigureAwait(false);
@@ -33,10 +35,10 @@ public static partial class FfmpegBackend
             // Without an output file ffmpeg always exits with an error; the stream info is printed before that.
         }
         if (fps is not > 0)
-            return null;
+            return (duration, null);
         // Printed rates are rounded (23.98); NTSC ones are really n·1000/1001, and the error adds up over frames.
         var ntsc = Math.Round(fps.Value * 1.001) / 1.001;
-        return Math.Abs(ntsc - fps.Value) < 0.006 && Math.Abs(fps.Value - Math.Round(fps.Value)) > 0.001 ? ntsc : fps;
+        return (duration, Math.Abs(ntsc - fps.Value) < 0.006 && Math.Abs(fps.Value - Math.Round(fps.Value)) > 0.001 ? ntsc : fps);
     }
 
     /// <summary>Trim start (seconds) that keeps frame <paramref name="frame"/>: ffmpeg keeps frames at or after -ss.</summary>
