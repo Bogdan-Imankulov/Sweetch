@@ -43,7 +43,7 @@ internal static class SelfTest
 
             log.AddRange(SmokeTest.Run(Path.Combine(outDir, "smoke")));
             // Saved after every step, so a hard crash (which skips the catch below) still shows where it stopped.
-            foreach (var step in new Action[] { () => TestSettingsRoundTrip(log), () => TestExplorerCom(outDir, log), () => TestDrops(log), () => TestWatchFolder(outDir, log), () => TestOcr(outDir, log), () => log.Add("ok updates disabled: no network request") })
+            foreach (var step in new Action[] { () => TestSettingsRoundTrip(log), () => TestExplorerCom(outDir, log), () => TestDrops(log), () => TestWatchFolder(outDir, log), () => TestOcr(outDir, log), () => TestPlayer(outDir, log), () => log.Add("ok updates disabled: no network request") })
             {
                 File.WriteAllLines(Path.Combine(outDir, "self-test.txt"), log);
                 step();
@@ -316,6 +316,84 @@ internal static class SelfTest
             System.Windows.Threading.Dispatcher.PushFrame(frame);
             Thread.Sleep(50);
         }
+    }
+
+    /// <summary>The trim player loads the bundled LibVLC, reads length and frame rate, and steps frames.</summary>
+    private static void TestPlayer(string outDir, List<string> log)
+    {
+        var dir = Path.Combine(outDir, "player");
+        Directory.CreateDirectory(dir);
+        var trim = WheelController.BuildOperations().Single(o => o.Id == "video.trim");
+
+        var wav = Path.Combine(dir, "тон #1.wav");
+        WriteTone(wav, seconds: 2);
+        var audio = new TrimWindow(trim, [new FileItem(wav)], new ToolLocator());
+        audio.Show();
+        Pump(() => audio.Length > 0, TimeSpan.FromSeconds(15));
+        Check(audio.Length is > 1900 and < 2100, $"player reads audio length ({audio.Length} ms)");
+        audio.Close();
+
+        var tools = new ToolLocator();
+        if (!tools.Has(ExternalTool.Ffmpeg))
+        {
+            log.Add("ok player (audio; no FFmpeg for a video sample)");
+            return;
+        }
+        var mp4 = Path.Combine(dir, "clip.mp4");
+        ProcessRunner.RunAsync(tools.Require(ExternalTool.Ffmpeg), ["-hide_banner", "-y", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25:duration=4",
+            "-f", "lavfi", "-i", "sine=frequency=440:duration=4", "-shortest", "-pix_fmt", "yuv420p", mp4], default).GetAwaiter().GetResult();
+        var video = new TrimWindow(trim, [new FileItem(mp4)], tools);
+        video.Show();
+        Pump(() => video.Length > 0, TimeSpan.FromSeconds(15));
+        Check(video.Length is > 3900 and < 4100 && Math.Abs(video.FrameMs - 40) < 0.01, $"player reads video length and frame rate ({video.Length} ms, {video.FrameMs} ms/frame)");
+        Pump(() => false, TimeSpan.FromSeconds(1));
+        CaptureScreen(video, Path.Combine(dir, "opened.png"));
+        video.TogglePlay();
+        Pump(() => false, TimeSpan.FromSeconds(1.5));
+        CaptureScreen(video, Path.Combine(dir, "playing.png"));
+        video.Step(37 - video.Position / 40);
+        Pump(() => false, TimeSpan.FromSeconds(2));
+        Check(video.Position == 37 * 40, $"frame step lands on frame 37 ({video.Position} ms)");
+        CaptureScreen(video, Path.Combine(dir, "frame-37.png")); // testsrc2 prints the frame number
+        video.Step(-1);
+        Pump(() => false, TimeSpan.FromSeconds(1));
+        Check(video.Position == 36 * 40, $"frame step back ({video.Position} ms)");
+        CaptureScreen(video, Path.Combine(dir, "frame-36.png"));
+        video.Close();
+        log.Add("ok player");
+    }
+
+    private static void WriteTone(string path, double seconds)
+    {
+        const int rate = 44100;
+        var samples = (int)(rate * seconds);
+        using var w = new BinaryWriter(File.Create(path));
+        w.Write("RIFF"u8);
+        w.Write(36 + samples * 2);
+        w.Write("WAVEfmt "u8);
+        w.Write(16);
+        w.Write((short)1);
+        w.Write((short)1);
+        w.Write(rate);
+        w.Write(rate * 2);
+        w.Write((short)2);
+        w.Write((short)16);
+        w.Write("data"u8);
+        w.Write(samples * 2);
+        for (var i = 0; i < samples; i++)
+            w.Write((short)(Math.Sin(2 * Math.PI * 440 * i / rate) * 8000));
+    }
+
+    /// <summary>A real screen grab: the video lives in a native child window that RenderTargetBitmap can't see.</summary>
+    private static void CaptureScreen(Window window, string file)
+    {
+        var toDevice = PresentationSource.FromVisual(window)!.CompositionTarget.TransformToDevice;
+        var topLeft = toDevice.Transform(new Point(window.Left, window.Top));
+        var size = toDevice.Transform(new Point(window.ActualWidth, window.ActualHeight));
+        using var bitmap = new System.Drawing.Bitmap((int)size.X, (int)size.Y);
+        using (var g = System.Drawing.Graphics.FromImage(bitmap))
+            g.CopyFromScreen((int)topLeft.X, (int)topLeft.Y, 0, 0, bitmap.Size);
+        bitmap.Save(file, System.Drawing.Imaging.ImageFormat.Png);
     }
 
     /// <summary>Renders a line of text and reads it back with Windows OCR, when the runner has it.</summary>

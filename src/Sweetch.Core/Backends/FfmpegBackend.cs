@@ -13,6 +13,28 @@ public static partial class FfmpegBackend
     [GeneratedRegex(@"\btime=\s*(\d+):(\d+):(\d+(?:\.\d+)?)")]
     private static partial Regex TimeRegex();
 
+    [GeneratedRegex(@"Video:.*?(\d+(?:\.\d+)?) fps")]
+    private static partial Regex FpsRegex();
+
+    /// <summary>Frame rate of the first video stream as ffmpeg reports it; null for audio or when unknown.</summary>
+    public static async Task<double?> FrameRateAsync(string ffmpeg, string path, CancellationToken ct = default)
+    {
+        double? fps = null;
+        try
+        {
+            await ProcessRunner.RunAsync(ffmpeg, ["-hide_banner", "-nostdin", "-i", path], ct, line =>
+            {
+                if (fps is null && FpsRegex().Match(line) is { Success: true } m)
+                    fps = double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+            }).ConfigureAwait(false);
+        }
+        catch (ConversionException)
+        {
+            // Without an output file ffmpeg always exits with an error; the stream info is printed before that.
+        }
+        return fps is > 0 ? fps : null;
+    }
+
     /// <summary>Encoder arguments for a target container.</summary>
     public static IReadOnlyList<string> CodecArgs(string format, Settings s, bool hasVideo = true)
     {

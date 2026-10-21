@@ -44,10 +44,10 @@ internal sealed class JobRunner(AppSettings settings, ToolLocator tools)
         parameters ??= new Dictionary<string, string>();
         if (op.Parameters.Count > 0 && parameters.Count == 0)
         {
-            var dialog = new ParameterDialog(op, items);
+            var dialog = ParameterDialog.For(op, items, tools);
             if (dialog.ShowDialog() != true)
                 return;
-            parameters = dialog.Values;
+            parameters = ((IParameterWindow)dialog).Values;
         }
         if (!automatic)
             Remember(op, parameters);

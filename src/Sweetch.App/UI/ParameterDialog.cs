@@ -6,9 +6,22 @@ using static Sweetch.Core.Loc;
 
 namespace Sweetch.App.UI;
 
-/// <summary>Asks for the values an operation needs (e.g. trim start and end).</summary>
-internal sealed class ParameterDialog : Window
+/// <summary>A dialog that collects an operation's parameter values.</summary>
+internal interface IParameterWindow
 {
+    IReadOnlyDictionary<string, string> Values { get; }
+}
+
+/// <summary>Asks for the values an operation needs (e.g. trim start and end).</summary>
+internal sealed class ParameterDialog : Window, IParameterWindow
+{
+    /// <summary>The richer window for operations that have one (player for trim), else this plain form.</summary>
+    public static Window For(Operation op, IReadOnlyList<FileItem> items, ToolLocator tools) => op.Id switch
+    {
+        "video.trim" or "audio.trim" => new TrimWindow(op, items, tools),
+        _ => new ParameterDialog(op, items),
+    };
+
     private readonly Dictionary<string, TextBox> _boxes = new();
 
     public ParameterDialog(Operation op, IReadOnlyList<FileItem> items)
